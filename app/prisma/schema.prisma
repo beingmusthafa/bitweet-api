@@ -13,8 +13,22 @@ model User {
   username String @unique
   fullName String
   password String
+  
+  followers Follow[] @relation("following")
+  following Follow[] @relation("follower")
 
   @@map("users")
+}
+
+model Follow {
+  follower    User   @relation("follower", fields: [followerId], references: [id])
+  followerId  String
+  following   User   @relation("following", fields: [followingId], references: [id])
+  followingId String
+  createdAt   DateTime @default(now())
+
+  @@id([followerId, followingId])
+  @@map("follows")
 }
 
 model BlacklistedToken {
