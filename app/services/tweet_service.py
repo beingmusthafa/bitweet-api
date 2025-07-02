@@ -82,7 +82,7 @@ class TweetService:
             raise ValueError(f"Failed to delete tweet: {str(e)}")
     
     @staticmethod
-    async def get_user_tweets(user_id: str, page_number: int = 1, page_size: int = 10) -> List[Dict]:
+    async def get_user_tweets(user_id: str, page_number: int = 1, page_size: int = 10) -> Dict:
         db = await get_db()
         
         try:
@@ -98,48 +98,70 @@ class TweetService:
                 include={"user": True}
             )
             
-            return tweets
+            # Get total count for pagination
+            total_count = await db.tweet.count(where={"userId": user_id})
+            total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+            
+            return {
+                "tweets": tweets,
+                "page": page_number,
+                "page_size": page_size,
+                "total": total_count,
+                "total_pages": total_pages
+            }
             
         except Exception as e:
             raise ValueError(f"Failed to fetch user tweets: {str(e)}")
     
     @staticmethod
-    async def get_timeline_tweets(current_user_id: str, page_number: int = 1, page_size: int = 10) -> List[Dict]:
+    async def get_timeline_tweets(current_user_id: str, page_number: int = 1, page_size: int = 10) -> Dict:
         db = await get_db()
         
         try:
             # Calculate skip for pagination
             skip = (page_number - 1) * page_size
             
-            # Use Prisma's relational queries to directly filter tweets
-            # This leverages PostgreSQL's JOIN capabilities more efficiently
-            tweets = await db.tweet.find_many(
-                where={
-                    "OR": [
-                        # Public tweets from any user except current user
-                        {"isPrivate": False, "userId": {"not": current_user_id}},
-                        
-                        # Private tweets from users that the current user follows
-                        {
-                            "isPrivate": True,
-                            "userId": {"not": current_user_id},
-                            "user": {
-                                "followers": {
-                                    "some": {
-                                        "followerId": current_user_id
-                                    }
+            # Define the where condition for timeline tweets
+            where_condition = {
+                "OR": [
+                    # Public tweets from any user except current user
+                    {"isPrivate": False, "userId": {"not": current_user_id}},
+                    
+                    # Private tweets from users that the current user follows
+                    {
+                        "isPrivate": True,
+                        "userId": {"not": current_user_id},
+                        "user": {
+                            "followers": {
+                                "some": {
+                                    "followerId": current_user_id
                                 }
                             }
                         }
-                    ]
-                },
+                    }
+                ]
+            }
+            
+            # Use Prisma's relational queries to directly filter tweets
+            tweets = await db.tweet.find_many(
+                where=where_condition,
                 skip=skip,
                 take=page_size,
                 order={"createdAt": "desc"},
                 include={"user": True}  # Join with user table to get user details
             )
             
-            return tweets
+            # Get total count for pagination
+            total_count = await db.tweet.count(where=where_condition)
+            total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+            
+            return {
+                "tweets": tweets,
+                "page": page_number,
+                "page_size": page_size,
+                "total": total_count,
+                "total_pages": total_pages
+            }
             
         except Exception as e:
             raise ValueError(f"Failed to fetch timeline tweets: {str(e)}")

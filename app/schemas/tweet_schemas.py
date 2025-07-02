@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 class TweetRequest(BaseModel):
@@ -20,6 +20,9 @@ class UserInfo(BaseModel):
     username: str
     fullName: str
     email: str
+    
+    class Config:
+        from_attributes = True
 
 class TweetResponse(BaseModel):
     id: str
@@ -28,3 +31,16 @@ class TweetResponse(BaseModel):
     createdAt: datetime
     userId: str
     user: UserInfo
+    
+    class Config:
+        from_attributes = True
+
+class PaginatedTweetsResponse(BaseModel):
+    tweets: List[TweetResponse]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+    
+    class Config:
+        from_attributes = True
