@@ -1,13 +1,13 @@
-from fastapi import APIRouter, HTTPException, Depends, Request, Path
+from fastapi import APIRouter, HTTPException, Depends, Request, Path, Query
 from pydantic import ValidationError
 from schemas.tweet_schemas import TweetRequest, TweetResponse
 from services.tweet_service import TweetService
 from utils.auth_middleware import get_current_user
-from typing import Dict
+from typing import Dict, List
 
 router = APIRouter(prefix="/user/tweets", tags=["Tweets"])
 
-@router.post("", response_model=TweetResponse)
+@router.post("/", response_model=TweetResponse)
 async def create_tweet(request: Request, current_user: Dict = Depends(get_current_user)):
     try:
         body = await request.json()
@@ -77,6 +77,44 @@ async def delete_tweet(
         )
         
         return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/my-tweets", response_model=List[TweetResponse])
+async def get_my_tweets(
+    page_number: int = Query(1, ge=1, description="Page number for pagination"),
+    current_user: Dict = Depends(get_current_user)
+):
+    try:
+        # Call service layer to get current user's tweets
+        tweets = await TweetService.get_user_tweets(
+            user_id=current_user["id"],
+            page_number=page_number
+        )
+        
+        return tweets
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/", response_model=List[TweetResponse])
+async def get_timeline(
+    page_number: int = Query(1, ge=1, description="Page number for pagination"),
+    current_user: Dict = Depends(get_current_user)
+):
+    try:
+        # Call service layer to get timeline tweets
+        tweets = await TweetService.get_timeline_tweets(
+            current_user_id=current_user["id"],
+            page_number=page_number
+        )
+        
+        return tweets
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

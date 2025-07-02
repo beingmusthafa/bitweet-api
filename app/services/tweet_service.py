@@ -1,5 +1,5 @@
 from database.connection import get_db
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 class TweetService:
     @staticmethod
@@ -7,12 +7,14 @@ class TweetService:
         db = await get_db()
         
         try:
+            # Create tweet with user relation included in the response
             tweet = await db.tweet.create(
                 data={
                     "text": text,
                     "isPrivate": is_private,
                     "userId": user_id
-                }
+                },
+                include={"user": True}  # Include the user in the response
             )
             
             return tweet
@@ -44,7 +46,8 @@ class TweetService:
             # Update tweet
             updated_tweet = await db.tweet.update(
                 where={"id": tweet_id},
-                data=update_data
+                data=update_data,
+                include={"user": True}  # Include the user in the response
             )
             
             return updated_tweet
@@ -77,3 +80,66 @@ class TweetService:
             raise ValueError(str(e))
         except Exception as e:
             raise ValueError(f"Failed to delete tweet: {str(e)}")
+    
+    @staticmethod
+    async def get_user_tweets(user_id: str, page_number: int = 1, page_size: int = 10) -> List[Dict]:
+        db = await get_db()
+        
+        try:
+            # Calculate skip for pagination
+            skip = (page_number - 1) * page_size
+            
+            # Get user tweets with pagination, ordered by creation date (newest first)
+            tweets = await db.tweet.find_many(
+                where={"userId": user_id},
+                skip=skip,
+                take=page_size,
+                order={"createdAt": "desc"},
+                include={"user": True}
+            )
+            
+            return tweets
+            
+        except Exception as e:
+            raise ValueError(f"Failed to fetch user tweets: {str(e)}")
+    
+    @staticmethod
+    async def get_timeline_tweets(current_user_id: str, page_number: int = 1, page_size: int = 10) -> List[Dict]:
+        db = await get_db()
+        
+        try:
+            # Calculate skip for pagination
+            skip = (page_number - 1) * page_size
+            
+            # Use Prisma's relational queries to directly filter tweets
+            # This leverages PostgreSQL's JOIN capabilities more efficiently
+            tweets = await db.tweet.find_many(
+                where={
+                    "OR": [
+                        # Public tweets from any user except current user
+                        {"isPrivate": False, "userId": {"not": current_user_id}},
+                        
+                        # Private tweets from users that the current user follows
+                        {
+                            "isPrivate": True,
+                            "userId": {"not": current_user_id},
+                            "user": {
+                                "followers": {
+                                    "some": {
+                                        "followerId": current_user_id
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                skip=skip,
+                take=page_size,
+                order={"createdAt": "desc"},
+                include={"user": True}  # Join with user table to get user details
+            )
+            
+            return tweets
+            
+        except Exception as e:
+            raise ValueError(f"Failed to fetch timeline tweets: {str(e)}")
