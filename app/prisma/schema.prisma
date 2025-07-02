@@ -16,6 +16,7 @@ model User {
   
   followers Follow[] @relation("following")
   following Follow[] @relation("follower")
+  tweets    Tweet[]
 
   @@map("users")
 }
@@ -37,4 +38,15 @@ model BlacklistedToken {
   createdAt DateTime @default(now())
 
   @@map("blacklisted_tokens")
+}
+
+model Tweet {
+  id        String   @id @default(cuid())
+  text      String
+  isPrivate Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("tweets")
 }
