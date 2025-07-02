@@ -1,7 +1,7 @@
 from passlib.context import CryptContext
 from prisma.errors import UniqueViolationError
 from database.connection import get_db
-from schemas.auth_schemas import UserRegistrationRequest
+from schemas.auth_schemas import UserRegistrationRequest, UserLoginRequest
 from utils.token_utils import generate_tokens
 from typing import Dict, Tuple
 
@@ -58,3 +58,40 @@ class AuthService:
                 raise ValueError("User already exists")
         except Exception as e:
             raise ValueError(f"Registration failed: {str(e)}")
+    
+    @staticmethod
+    async def login_user(user_data: UserLoginRequest) -> Tuple[Dict, Dict[str, str]]:
+        db = await get_db()
+        
+        try:
+            # Find user by email or username
+            user = await db.user.find_first(
+                where={
+                    "OR": [
+                        {"email": user_data.identifier},
+                        {"username": user_data.identifier}
+                    ]
+                }
+            )
+            
+            if not user or not AuthService.verify_password(user_data.password, user.password):
+                raise ValueError("Invalid credentials")
+            
+            # Generate tokens
+            tokens = generate_tokens(user.id)
+            
+            # Return user data (without password) and tokens
+            user_response = {
+                "id": user.id,
+                "email": user.email,
+                "username": user.username,
+                "fullName": user.fullName,
+                "message": "Login successful"
+            }
+            
+            return user_response, tokens
+            
+        except Exception as e:
+            if "Invalid credentials" in str(e):
+                raise ValueError("Invalid credentials")
+            raise ValueError(f"Login failed: {str(e)}")

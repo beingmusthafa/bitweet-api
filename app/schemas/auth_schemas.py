@@ -39,3 +39,14 @@ class UserRegistrationResponse(BaseModel):
     username: str
     fullName: str
     message: str
+
+class UserLoginRequest(BaseModel):
+    identifier: str  # Can be email or username
+    password: str
+
+class UserLoginResponse(BaseModel):
+    id: str
+    email: str
+    username: str
+    fullName: str
+    message: str
