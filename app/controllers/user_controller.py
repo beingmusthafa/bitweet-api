@@ -5,7 +5,7 @@ from services.user_service import UserService
 from utils.auth_middleware import get_current_user
 from typing import Dict, Optional
 
-router = APIRouter(prefix="/user", tags=["User"])
+router = APIRouter(prefix="/user/relations", tags=["User relations"])
 
 @router.post("/follow")
 async def follow_user(request: Request, current_user: Dict = Depends(get_current_user)):
