@@ -1,7 +1,7 @@
 from database.connection import get_db
-from typing import Dict, List
+from typing import Dict
 
-class UserService:
+class ConnectionsService:
     @staticmethod
     async def follow_user(follower_id: str, following_id: str) -> Dict:
         db = await get_db()

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from controllers.auth_controller import router as auth_router
-from controllers.user_controller import router as relations_router
+from controllers.connections_controller import router as connections_router
 from controllers.tweet_controller import router as tweet_router
 from database.connection import connect_db, disconnect_db
 from init_db import init_database
@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth_router)
-app.include_router(relations_router)
+app.include_router(connections_router)
 app.include_router(tweet_router)
 
 @app.get("/")

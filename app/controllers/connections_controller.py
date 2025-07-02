@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import ValidationError
 from schemas.user_schemas import FollowRequest, UnfollowRequest, PaginatedUsersResponse, FollowersResponse, FollowingResponse
-from services.user_service import UserService
+from services.connections_service import ConnectionsService
 from utils.auth_middleware import get_current_user
 from typing import Dict, Optional
 
-router = APIRouter(prefix="/user/relations", tags=["User relations"])
+router = APIRouter(prefix="/user/connections", tags=["User relations"])
 
 @router.post("/follow")
 async def follow_user(request: Request, current_user: Dict = Depends(get_current_user)):
@@ -14,7 +14,7 @@ async def follow_user(request: Request, current_user: Dict = Depends(get_current
         follow_data = FollowRequest(**body)
         
         # Call service layer with authenticated user ID
-        result = await UserService.follow_user(
+        result = await ConnectionsService.follow_user(
             follower_id=current_user["id"],
             following_id=follow_data.to_follow
         )
@@ -39,7 +39,7 @@ async def unfollow_user(request: Request, current_user: Dict = Depends(get_curre
         unfollow_data = UnfollowRequest(**body)
         
         # Call service layer with authenticated user ID
-        result = await UserService.unfollow_user(
+        result = await ConnectionsService.unfollow_user(
             follower_id=current_user["id"],
             following_id=unfollow_data.to_unfollow
         )
@@ -60,7 +60,7 @@ async def unfollow_user(request: Request, current_user: Dict = Depends(get_curre
 @router.get("/people", response_model=PaginatedUsersResponse)
 async def get_users(page: Optional[int] = Query(1, ge=1), current_user: Dict = Depends(get_current_user)):
     try:
-        result = await UserService.get_users_paginated(
+        result = await ConnectionsService.get_users_paginated(
             current_user_id=current_user["id"],
             page=page
         )
@@ -73,7 +73,7 @@ async def get_users(page: Optional[int] = Query(1, ge=1), current_user: Dict = D
 @router.get("/followers", response_model=FollowersResponse)
 async def get_followers(current_user: Dict = Depends(get_current_user)):
     try:
-        result = await UserService.get_followers(current_user["id"])
+        result = await ConnectionsService.get_followers(current_user["id"])
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -83,7 +83,7 @@ async def get_followers(current_user: Dict = Depends(get_current_user)):
 @router.get("/following", response_model=FollowingResponse)
 async def get_following(current_user: Dict = Depends(get_current_user)):
     try:
-        result = await UserService.get_following(current_user["id"])
+        result = await ConnectionsService.get_following(current_user["id"])
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
