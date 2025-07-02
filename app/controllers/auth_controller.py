@@ -86,3 +86,25 @@ async def login_user(request: Request, response: Response):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/logout")
+async def logout_user(request: Request, response: Response):
+    try:
+        # Get refresh token from cookies
+        refresh_token = request.cookies.get("refresh_token")
+        
+        if refresh_token:
+            # Blacklist the refresh token
+            await AuthService.logout_user(refresh_token)
+        
+        # Clear cookies
+        response.delete_cookie(key="access_token")
+        response.delete_cookie(key="refresh_token")
+        
+        return {"message": "Logout successful"}
+        
+    except Exception as e:
+        # Still clear cookies even if blacklisting fails
+        response.delete_cookie(key="access_token")
+        response.delete_cookie(key="refresh_token")
+        raise HTTPException(status_code=500, detail="Internal server error")

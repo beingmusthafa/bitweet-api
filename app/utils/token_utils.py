@@ -2,6 +2,7 @@ import jwt
 from datetime import datetime, timedelta
 from typing import Dict
 import os
+from database.connection import get_db
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
@@ -32,8 +33,19 @@ def generate_tokens(user_id: str) -> Dict[str, str]:
         "refresh_token": generate_refresh_token(user_id)
     }
 
-def verify_token(token: str) -> Dict:
+async def is_token_blacklisted(token: str) -> bool:
+    db = await get_db()
+    blacklisted = await db.blacklistedtoken.find_unique(
+        where={"token": token}
+    )
+    return blacklisted is not None
+
+async def verify_token(token: str) -> Dict:
     try:
+        # Check if token is blacklisted
+        if await is_token_blacklisted(token):
+            raise ValueError("Token has been revoked")
+            
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except jwt.ExpiredSignatureError:

@@ -16,3 +16,11 @@ model User {
 
   @@map("users")
 }
+
+model BlacklistedToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("blacklisted_tokens")
+}

@@ -95,3 +95,19 @@ class AuthService:
             if "Invalid credentials" in str(e):
                 raise ValueError("Invalid credentials")
             raise ValueError(f"Login failed: {str(e)}")
+    
+    @staticmethod
+    async def logout_user(refresh_token: str) -> Dict:
+        db = await get_db()
+        
+        try:
+            # Blacklist the refresh token
+            await db.blacklistedtoken.create(
+                data={"token": refresh_token}
+            )
+            
+            return {"message": "Logout successful"}
+            
+        except Exception as e:
+            raise ValueError(f"Logout failed: {str(e)}")
+    
