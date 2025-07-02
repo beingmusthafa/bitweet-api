@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import ValidationError
-from schemas.user_schemas import FollowRequest
+from schemas.user_schemas import FollowRequest, UnfollowRequest, PaginatedUsersResponse
 from services.user_service import UserService
 from utils.auth_middleware import get_current_user
-from typing import Dict
+from typing import Dict, Optional
 
 router = APIRouter(prefix="/user", tags=["User"])
 
@@ -27,6 +27,44 @@ async def follow_user(request: Request, current_user: Dict = Depends(get_current
             field_name = error['loc'][-1] if error['loc'] else 'unknown'
             errors[field_name] = error['msg']
         raise HTTPException(status_code=400, detail={"errors": errors})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/unfollow")
+async def unfollow_user(request: Request, current_user: Dict = Depends(get_current_user)):
+    try:
+        body = await request.json()
+        unfollow_data = UnfollowRequest(**body)
+        
+        # Call service layer with authenticated user ID
+        result = await UserService.unfollow_user(
+            follower_id=current_user["id"],
+            following_id=unfollow_data.to_unfollow
+        )
+        
+        return result
+        
+    except ValidationError as e:
+        errors = {}
+        for error in e.errors():
+            field_name = error['loc'][-1] if error['loc'] else 'unknown'
+            errors[field_name] = error['msg']
+        raise HTTPException(status_code=400, detail={"errors": errors})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/people", response_model=PaginatedUsersResponse)
+async def get_users(page: Optional[int] = Query(1, ge=1), current_user: Dict = Depends(get_current_user)):
+    try:
+        result = await UserService.get_users_paginated(
+            current_user_id=current_user["id"],
+            page=page
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
