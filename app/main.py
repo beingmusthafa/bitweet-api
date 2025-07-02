@@ -1,5 +1,7 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import os
 from controllers.auth_controller import router as auth_router
 from controllers.connections_controller import router as connections_router
 from controllers.tweet_controller import router as tweet_router
@@ -16,6 +18,16 @@ async def lifespan(app: FastAPI):
     await disconnect_db()
 
 app = FastAPI(lifespan=lifespan)
+
+# Configure CORS
+client_url = os.getenv("CLIENT_URL")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[client_url],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(connections_router)
