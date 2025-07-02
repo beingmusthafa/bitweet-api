@@ -19,3 +19,9 @@ class PaginatedUsersResponse(BaseModel):
     page_size: int
     total: int
     total_pages: int
+
+class FollowersResponse(BaseModel):
+    followers: List[UserResponse]
+
+class FollowingResponse(BaseModel):
+    following: List[UserResponse]

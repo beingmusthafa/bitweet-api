@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import ValidationError
-from schemas.user_schemas import FollowRequest, UnfollowRequest, PaginatedUsersResponse
+from schemas.user_schemas import FollowRequest, UnfollowRequest, PaginatedUsersResponse, FollowersResponse, FollowingResponse
 from services.user_service import UserService
 from utils.auth_middleware import get_current_user
 from typing import Dict, Optional
@@ -64,6 +64,26 @@ async def get_users(page: Optional[int] = Query(1, ge=1), current_user: Dict = D
             current_user_id=current_user["id"],
             page=page
         )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/followers", response_model=FollowersResponse)
+async def get_followers(current_user: Dict = Depends(get_current_user)):
+    try:
+        result = await UserService.get_followers(current_user["id"])
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/following", response_model=FollowingResponse)
+async def get_following(current_user: Dict = Depends(get_current_user)):
+    try:
+        result = await UserService.get_following(current_user["id"])
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -130,3 +130,61 @@ class UserService:
             raise ValueError(str(e))
         except Exception as e:
             raise ValueError(f"Failed to get users: {str(e)}")
+    
+    @staticmethod
+    async def get_followers(user_id: str) -> Dict:
+        db = await get_db()
+        
+        try:
+            # Find all follows where the current user is being followed
+            follows = await db.follow.find_many(
+                where={"followingId": user_id}
+            )
+            
+            # Get the follower users
+            follower_ids = [follow.followerId for follow in follows]
+            followers = []
+            
+            for follower_id in follower_ids:
+                user = await db.user.find_unique(where={"id": follower_id})
+                if user:
+                    followers.append({
+                        "id": user.id,
+                        "username": user.username,
+                        "fullName": user.fullName,
+                        "email": user.email
+                    })
+            
+            return {"followers": followers}
+            
+        except Exception as e:
+            raise ValueError(f"Failed to get followers: {str(e)}")
+    
+    @staticmethod
+    async def get_following(user_id: str) -> Dict:
+        db = await get_db()
+        
+        try:
+            # Find all follows where the current user is following
+            follows = await db.follow.find_many(
+                where={"followerId": user_id}
+            )
+            
+            # Get the following users
+            following_ids = [follow.followingId for follow in follows]
+            following = []
+            
+            for following_id in following_ids:
+                user = await db.user.find_unique(where={"id": following_id})
+                if user:
+                    following.append({
+                        "id": user.id,
+                        "username": user.username,
+                        "fullName": user.fullName,
+                        "email": user.email
+                    })
+            
+            return {"following": following}
+            
+        except Exception as e:
+            raise ValueError(f"Failed to get following: {str(e)}")
