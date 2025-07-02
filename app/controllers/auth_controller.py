@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, Response, Request
+from fastapi import APIRouter, HTTPException, Response, Request, Depends
 from pydantic import ValidationError
 from schemas.auth_schemas import UserRegistrationRequest, UserRegistrationResponse, UserLoginRequest, UserLoginResponse
+from schemas.user_schemas import UserResponse
 from services.auth_service import AuthService
+from utils.auth_middleware import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -107,4 +109,11 @@ async def logout_user(request: Request, response: Response):
         # Still clear cookies even if blacklisting fails
         response.delete_cookie(key="access_token")
         response.delete_cookie(key="refresh_token")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/profile", response_model=UserResponse)
+async def get_user_profile(current_user=Depends(get_current_user)):
+    try:
+        return current_user
+    except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
