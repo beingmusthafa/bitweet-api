@@ -8,6 +8,8 @@ from controllers.tweet_controller import router as tweet_router
 from controllers.user_controller import router as user_router
 from database.connection import connect_db, disconnect_db
 from init_db import init_database
+from starlette.middleware.cors import CORSMiddleware
+from utils.security_middleware import SecurityMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +21,8 @@ async def lifespan(app: FastAPI):
     await disconnect_db()
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(SecurityMiddleware)
 
 # Configure CORS
 client_url = os.getenv("CLIENT_URL")
