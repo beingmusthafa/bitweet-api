@@ -3,6 +3,7 @@ from prisma.errors import UniqueViolationError
 from database.connection import get_db
 from schemas.auth_schemas import UserRegistrationRequest, UserLoginRequest
 from utils.token_utils import generate_tokens
+from utils.security_middleware import sanitize_string
 from typing import Dict, Tuple
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -24,12 +25,17 @@ class AuthService:
             # Hash password
             hashed_password = AuthService.hash_password(user_data.password)
             
+            # Sanitize user input fields
+            sanitized_email = sanitize_string(user_data.email)
+            sanitized_username = sanitize_string(user_data.username)
+            sanitized_fullname = sanitize_string(user_data.fullName)
+            
             # Create user
             user = await db.user.create(
                 data={
-                    "email": user_data.email,
-                    "username": user_data.username,
-                    "fullName": user_data.fullName,
+                    "email": sanitized_email,
+                    "username": sanitized_username,
+                    "fullName": sanitized_fullname,
                     "password": hashed_password
                 }
             )

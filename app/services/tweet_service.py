@@ -1,4 +1,5 @@
 from database.connection import get_db
+from utils.security_middleware import sanitize_string
 from typing import Dict, Optional, List
 
 class TweetService:
@@ -7,10 +8,13 @@ class TweetService:
         db = await get_db()
         
         try:
+            # Sanitize tweet text
+            sanitized_text = sanitize_string(text)
+            
             # Create tweet with user relation included in the response
             tweet = await db.tweet.create(
                 data={
-                    "text": text,
+                    "text": sanitized_text,
                     "isPrivate": is_private,
                     "userId": user_id
                 },
@@ -39,7 +43,8 @@ class TweetService:
             # Prepare update data
             update_data = {}
             if text is not None:
-                update_data["text"] = text
+                # Sanitize tweet text before updating
+                update_data["text"] = sanitize_string(text)
             if is_private is not None:
                 update_data["isPrivate"] = is_private
             
