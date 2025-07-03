@@ -93,10 +93,19 @@ class ConnectionsService:
             # Calculate skip for pagination
             skip = (page - 1) * page_size
             
-            # Get users with pagination, excluding current user
+            # Get the IDs of users that the current user is following
+            follows = await db.follow.find_many(
+                where={"followerId": current_user_id}
+            )
+            following_ids = [follow.followingId for follow in follows]
+            
+            # Get users with pagination, excluding current user and users already followed
             users = await db.user.find_many(
                 where={
-                    "id": {"not": current_user_id}
+                    "AND": [
+                        {"id": {"not": current_user_id}},
+                        {"id": {"not_in": following_ids}} if following_ids else {}
+                    ]
                 },
                 skip=skip,
                 take=page_size,
@@ -113,9 +122,14 @@ class ConnectionsService:
                 "email": user.email
             } for user in users]
             
-            # Get total count for pagination info (excluding current user)
+            # Get total count for pagination info (excluding current user and followed users)
             total_count = await db.user.count(
-                where={"id": {"not": current_user_id}}
+                where={
+                    "AND": [
+                        {"id": {"not": current_user_id}},
+                        {"id": {"not_in": following_ids}} if following_ids else {}
+                    ]
+                }
             )
             
             return {
