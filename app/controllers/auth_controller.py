@@ -4,6 +4,7 @@ from schemas.auth_schemas import UserRegistrationRequest, UserRegistrationRespon
 from schemas.user_schemas import UserResponse
 from services.auth_service import AuthService
 from utils.auth_middleware import get_current_user
+from utils.token_utils import verify_token, generate_tokens
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -115,5 +116,51 @@ async def logout_user(request: Request, response: Response):
 async def get_user_profile(current_user=Depends(get_current_user)):
     try:
         return current_user
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/refresh")
+async def refresh_token(request: Request, response: Response):
+    try:
+        # Get refresh token from cookies
+        refresh_token = request.cookies.get("refresh_token")
+        
+        if not refresh_token:
+            raise HTTPException(status_code=401, detail="Refresh token not found")
+        
+        # Verify the refresh token
+        payload = await verify_token(refresh_token)
+        
+        # Check if it's a refresh token
+        if payload["type"] != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        
+        # Generate new tokens
+        user_id = payload["user_id"]
+        tokens = generate_tokens(user_id)
+        
+        # Set new cookies
+        response.set_cookie(
+            key="access_token",
+            value=tokens["access_token"],
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=30 * 60  # 30 minutes
+        )
+        
+        response.set_cookie(
+            key="refresh_token",
+            value=tokens["refresh_token"],
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=7 * 24 * 60 * 60  # 7 days
+        )
+        
+        return {"message": "Token refreshed successfully"}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
