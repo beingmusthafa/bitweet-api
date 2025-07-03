@@ -143,14 +143,29 @@ class TweetService:
             }
             
             # Use Prisma's relational queries to directly filter tweets
-            tweets = await db.tweet.find_many(
+            tweets_raw = await db.tweet.find_many(
                 where=where_condition,
                 skip=skip,
                 take=page_size,
                 order={"createdAt": "desc"},
                 include={"user": True}  # Join with user table to get user details
             )
-            
+
+            tweets = [
+                {
+                    "id": tweet.id,
+                    "text": tweet.text,
+                    "createdAt": tweet.createdAt,
+                    "isPrivate": tweet.isPrivate,
+                    "user": {
+                        "id": tweet.user.id,
+                        "fullName": tweet.user.fullName,
+                        "username": tweet.user.username
+                    } if tweet.user else None
+                }
+                for tweet in tweets_raw
+            ]
+                        
             # Get total count for pagination
             total_count = await db.tweet.count(where=where_condition)
             total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
