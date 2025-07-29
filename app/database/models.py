@@ -1,12 +1,9 @@
-from sqlalchemy import create_engine, Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
-import os
-
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/twitter_clone_db")
 
 Base = declarative_base()
 
@@ -50,9 +47,3 @@ class Tweet(Base):
     userId = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     user = relationship("User", back_populates="tweets")
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def create_db_and_tables():
-    Base.metadata.create_all(engine)

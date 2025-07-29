@@ -3,7 +3,7 @@ from database.models import Base
 import os
 from typing import AsyncGenerator
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/twitter_clone_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://twitter_user:twitter_pass@postgres:5432/twitter_clone")
 # Convert to async URL
 ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
