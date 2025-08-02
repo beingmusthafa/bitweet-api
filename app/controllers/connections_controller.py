@@ -16,6 +16,7 @@ async def follow_user(request: Request, current_user: Dict = Depends(get_current
         # Call service layer with authenticated user ID
         result = await ConnectionsService.follow_user(
             follower_id=current_user["id"],
+            follower_username=current_user["username"],
             following_id=follow_data.to_follow
         )
 

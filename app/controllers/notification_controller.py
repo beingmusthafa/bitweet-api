@@ -25,23 +25,26 @@ async def websocket_endpoint(
     websocket: WebSocket,
     db: AsyncSession = Depends(get_db)
 ):
+    connection_id = None
+    user_id = None
+    
     try:
-        await websocket.accept()
+        # Get token before accepting connection
         token = websocket.cookies.get("access_token")
         if not token:
             await websocket.close(code=1008, reason="No access token found in cookies")
             return
 
         user_id = await get_user_from_token(token)
+        print(f"🔌 [WEBSOCKET] User {user_id} attempting to connect")
 
-        # Connect user (WebSocket already accepted above)
-        connection_id = str(uuid.uuid4())
-        websocket_manager.active_connections[connection_id] = websocket
-        if websocket_manager.redis_client:
-            try:
-                await websocket_manager.redis_client.set(f"user:{user_id}", connection_id, ex=3600)
-            except Exception as e:
-                print(f"Failed to store user connection in Redis: {e}")
+        # Initialize Redis if needed
+        if websocket_manager.redis_client is None:
+            await websocket_manager.init_redis()
+
+        # Use the websocket_manager connect method
+        connection_id = await websocket_manager.connect(websocket, user_id)
+        print(f"✅ [WEBSOCKET] User {user_id} connected with connection_id: {connection_id}")
 
         # Send unread notifications
         unread_notifications = await NotificationService.get_unread_notifications(db, user_id)
@@ -65,15 +68,43 @@ async def websocket_endpoint(
         }
 
         await websocket_manager.send_message(connection_id, welcome_message)
+        print(f"📋 [WEBSOCKET] Sent {len(notifications_data)} unread notifications to user {user_id}")
+
+        # Keep connection alive by listening for messages
+        while True:
+            try:
+                # Wait for client messages (heartbeat, etc.)
+                data = await websocket.receive_text()
+                message = json.loads(data)
+                print(f"📨 [WEBSOCKET] Received message from user {user_id}: {message}")
+                
+                # Handle different message types if needed
+                if message.get("type") == "ping":
+                    await websocket_manager.send_message(connection_id, {"type": "pong"})
+                    
+            except WebSocketDisconnect:
+                print(f"🔌 [WEBSOCKET] User {user_id} disconnected")
+                break
+            except json.JSONDecodeError:
+                print(f"⚠️ [WEBSOCKET] Invalid JSON from user {user_id}")
+            except Exception as e:
+                print(f"❌ [WEBSOCKET] Error handling message from user {user_id}: {e}")
+                break
 
     except HTTPException as e:
+        print(f"❌ [WEBSOCKET] HTTP error for user {user_id}: {e.detail}")
         await websocket.close(code=1008, reason=e.detail)
     except WebSocketDisconnect:
-        pass
+        print(f"🔌 [WEBSOCKET] User {user_id} disconnected during setup")
     except Exception as e:
-        await websocket.close(code=1011, reason="Internal server error")
+        print(f"❌ [WEBSOCKET] Unexpected error for user {user_id}: {e}")
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except:
+            pass
     finally:
-        if 'user_id' in locals() and 'connection_id' in locals():
+        if user_id and connection_id:
+            print(f"🔌 [WEBSOCKET] Cleaning up connection for user {user_id}")
             await websocket_manager.disconnect(connection_id, user_id)
 
 @router.get("/", response_model=PaginatedNotificationsResponse)
