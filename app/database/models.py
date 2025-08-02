@@ -19,6 +19,7 @@ class User(Base):
     followers = relationship("Follow", foreign_keys="[Follow.followingId]", back_populates="following")
     following = relationship("Follow", foreign_keys="[Follow.followerId]", back_populates="follower")
     tweets = relationship("Tweet", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
 
 class Follow(Base):
     __tablename__ = "follows"
@@ -47,3 +48,15 @@ class Tweet(Base):
     userId = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     user = relationship("User", back_populates="tweets")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=True)
+    message = Column(String, nullable=False)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="notifications")

@@ -6,8 +6,10 @@ from controllers.auth_controller import router as auth_router
 from controllers.connections_controller import router as connections_router
 from controllers.tweet_controller import router as tweet_router
 from controllers.user_controller import router as user_router
+from controllers.notification_controller import router as notification_router
 from database.connection import connect_db, disconnect_db
 from init_db import init_database
+from services.websocket_manager import websocket_manager
 from starlette.middleware.cors import CORSMiddleware
 from utils.security_middleware import SecurityMiddleware
 
@@ -16,6 +18,7 @@ async def lifespan(app: FastAPI):
     # Startup
     await init_database()
     await connect_db()
+    await websocket_manager.init_redis()
     yield
     # Shutdown
     await disconnect_db()
@@ -38,6 +41,7 @@ app.include_router(auth_router)
 app.include_router(connections_router)
 app.include_router(tweet_router)
 app.include_router(user_router)
+app.include_router(notification_router)
 
 @app.get("/")
 def root():
