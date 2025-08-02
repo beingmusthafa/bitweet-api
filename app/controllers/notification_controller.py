@@ -1,6 +1,7 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import ValidationError
 from database.connection import get_db
 from services.notification_service import NotificationService
 from services.websocket_manager import websocket_manager
@@ -114,27 +115,85 @@ async def get_notifications(
     current_user: Dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    notifications, has_more = await NotificationService.get_paginated_notifications(
-        db, current_user["id"], page, limit
-    )
-    return PaginatedNotificationsResponse(
-        data=notifications,
-        page=page,
-        has_more=has_more
-    )
+    try:
+        notifications, has_more = await NotificationService.get_paginated_notifications(
+            db, current_user["id"], page, limit
+        )
+        return PaginatedNotificationsResponse(
+            data=notifications,
+            page=page,
+            has_more=has_more
+        )
+    except ValidationError as e:
+        errors = {}
+        for error in e.errors():
+            field_name = error['loc'][-1] if error['loc'] else 'unknown'
+            errors[field_name] = error['msg']
+        raise HTTPException(status_code=400, detail={"errors": errors})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/unread", response_model=List[NotificationResponse])
 async def get_unread_notifications(
     current_user: Dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    notifications = await NotificationService.get_unread_notifications(db, current_user["id"])
-    return notifications
+    try:
+        notifications = await NotificationService.get_unread_notifications(db, current_user["id"])
+        return notifications
+    except ValidationError as e:
+        errors = {}
+        for error in e.errors():
+            field_name = error['loc'][-1] if error['loc'] else 'unknown'
+            errors[field_name] = error['msg']
+        raise HTTPException(status_code=400, detail={"errors": errors})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.patch("/mark-all-read")
 async def mark_all_notifications_read(
     current_user: Dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    count = await NotificationService.mark_all_notifications_as_read(db, current_user["id"])
-    return {"message": f"Marked {count} notifications as read"}
+    try:
+        count = await NotificationService.mark_all_notifications_as_read(db, current_user["id"])
+        return JSONResponse(
+            content={"message": f"Marked {count} notifications as read", "count": count},
+            status_code=200
+        )
+    except ValidationError as e:
+        errors = {}
+        for error in e.errors():
+            field_name = error['loc'][-1] if error['loc'] else 'unknown'
+            errors[field_name] = error['msg']
+        raise HTTPException(status_code=400, detail={"errors": errors})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/clear-all")
+async def clear_all_notifications(
+    current_user: Dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        count = await NotificationService.clear_all_notifications(db, current_user["id"])
+        return JSONResponse(
+            content={"message": f"Deleted {count} notifications", "count": count},
+            status_code=200
+        )
+    except ValidationError as e:
+        errors = {}
+        for error in e.errors():
+            field_name = error['loc'][-1] if error['loc'] else 'unknown'
+            errors[field_name] = error['msg']
+        raise HTTPException(status_code=400, detail={"errors": errors})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")

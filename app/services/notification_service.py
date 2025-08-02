@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from database.models import Notification, User
 from typing import List, Optional
 import uuid
@@ -75,3 +75,12 @@ class NotificationService:
 
         # Return only the requested limit
         return notifications[:limit], has_more
+
+    @staticmethod
+    async def clear_all_notifications(db: AsyncSession, user_id: str) -> int:
+        result = await db.execute(
+            delete(Notification)
+            .where(Notification.user_id == uuid.UUID(user_id))
+        )
+        await db.commit()
+        return result.rowcount
