@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -20,6 +20,8 @@ class User(Base):
     following = relationship("Follow", foreign_keys="[Follow.followerId]", back_populates="follower")
     tweets = relationship("Tweet", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
+    hosted_rooms = relationship("Room", back_populates="host")
+    participations = relationship("Participant", back_populates="user")
 
 class Follow(Base):
     __tablename__ = "follows"
@@ -60,3 +62,27 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="notifications")
+
+class Room(Base):
+    __tablename__ = "rooms"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String, nullable=False)
+    is_live = Column(Boolean, default=False)
+    host_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    host = relationship("User", back_populates="hosted_rooms")
+    participants = relationship("Participant", back_populates="room", cascade="all, delete-orphan")
+
+class Participant(Base):
+    __tablename__ = "participants"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    room_id = Column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    is_speaker = Column(Boolean, default=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    room = relationship("Room", back_populates="participants")
+    user = relationship("User", back_populates="participations")

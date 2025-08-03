@@ -50,8 +50,14 @@ async def verify_token(token: str) -> Dict:
             raise ValueError("Token has been revoked")
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"✅ [TOKEN] SUCCESS - Token decoded successfully")
+        print(f"🔐 [TOKEN] Payload: user_id={payload.get('user_id')}, type={payload.get('type')}, exp={payload.get('exp')}")
         return payload
     except jwt.ExpiredSignatureError:
         raise ValueError("Token has expired")
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        print(f"❌ [TOKEN] FAILED - Invalid token: {str(e)}")
         raise ValueError("Invalid token")
+    except Exception as e:
+        print(f"❌ [TOKEN] FAILED - Unexpected error during token verification: {str(e)}")
+        raise ValueError(f"Token verification failed: {str(e)}")
