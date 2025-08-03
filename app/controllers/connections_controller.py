@@ -12,15 +12,16 @@ async def follow_user(request: Request, current_user: Dict = Depends(get_current
     try:
         body = await request.json()
         follow_data = FollowRequest(**body)
-        
+
         # Call service layer with authenticated user ID
         result = await ConnectionsService.follow_user(
             follower_id=current_user["id"],
+            follower_username=current_user["username"],
             following_id=follow_data.to_follow
         )
-        
+
         return result
-        
+
     except ValidationError as e:
         errors = {}
         for error in e.errors():
@@ -37,15 +38,15 @@ async def unfollow_user(request: Request, current_user: Dict = Depends(get_curre
     try:
         body = await request.json()
         unfollow_data = UnfollowRequest(**body)
-        
+
         # Call service layer with authenticated user ID
         result = await ConnectionsService.unfollow_user(
             follower_id=current_user["id"],
             following_id=unfollow_data.to_unfollow
         )
-        
+
         return result
-        
+
     except ValidationError as e:
         errors = {}
         for error in e.errors():
@@ -62,7 +63,7 @@ async def get_users(page: Optional[int] = Query(1, ge=1), current_user: Dict = D
     try:
         result = await ConnectionsService.get_users_paginated(
             current_user_id=current_user["id"],
-            page=page
+            page=page if page is not None else 1
         )
         return result
     except ValueError as e:

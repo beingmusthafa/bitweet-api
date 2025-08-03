@@ -1,6 +1,4 @@
 import asyncio
-import subprocess
-import sys
 import time
 import socket
 
@@ -22,17 +20,10 @@ def wait_for_postgres():
 async def init_database():
     try:
         wait_for_postgres()
-        
-        # Generate Prisma client
-        subprocess.run([sys.executable, "-m", "prisma", "generate"], check=True)
-        
-        # Push schema to database
-        subprocess.run([sys.executable, "-m", "prisma", "db", "push"], check=True)
-        
         print("Database initialized successfully")
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"Database initialization failed: {e}")
-        sys.exit(1)
+        raise e
 
 if __name__ == "__main__":
     asyncio.run(init_database())

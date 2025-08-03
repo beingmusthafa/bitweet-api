@@ -2,11 +2,14 @@ import random
 import string
 import time
 import re
-from database.connection import get_db
+from database.connection import AsyncSessionLocal
+from database.models import User
 from services.auth_service import AuthService
 from worker import celery, print_otp_to_console
 import redis
 import os
+from sqlalchemy import select, update
+from typing import Optional
 
 # Connect to Redis
 redis_client = redis.Redis(
@@ -69,27 +72,33 @@ class UserService:
             raise ValueError(str(e))
         
         # OTP is valid and password is valid, change password
-        db = await get_db()
-        
-        # Get current user to check if new password is same as old one
-        user = await db.user.find_unique(where={"id": user_id})
-        if not user:
-            raise ValueError("User not found")
-            
-        # Hash the new password
-        hashed_password = AuthService.hash_password(new_password)
-        
-        # Check if new password is same as old password
-        if AuthService.verify_password(new_password, user.password):
-            raise ValueError("New password cannot be the same as your current password")
-        
-        # Update user password
-        await db.user.update(
-            where={"id": user_id},
-            data={"password": hashed_password}
-        )
-        
-        # Delete the OTP from Redis
-        redis_client.delete(redis_key)
-        
-        return {"success": True}
+        async with AsyncSessionLocal() as db:
+            try:
+                # Get current user to check if new password is same as old one
+                result = await db.execute(select(User).where(User.id == user_id))
+                user = result.scalar_one_or_none()
+                if not user:
+                    raise ValueError("User not found")
+                    
+                # Hash the new password
+                hashed_password = AuthService.hash_password(new_password)
+                
+                # Check if new password is same as old password
+                if AuthService.verify_password(new_password, str(user.password)):
+                    raise ValueError("New password cannot be the same as your current password")
+                
+                # Update user password using SQLAlchemy update
+                await db.execute(
+                    update(User)
+                    .where(User.id == user_id)
+                    .values(password=hashed_password)
+                )
+                await db.commit()
+                
+                # Delete the OTP from Redis
+                redis_client.delete(redis_key)
+                
+                return {"success": True}
+            except Exception as e:
+                await db.rollback()
+                raise ValueError(f"Failed to update password: {str(e)}")

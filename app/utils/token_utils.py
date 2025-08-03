@@ -2,7 +2,9 @@ import jwt
 from datetime import datetime, timedelta
 from typing import Dict
 import os
-from database.connection import get_db
+from database.connection import AsyncSessionLocal
+from database.models import BlacklistedToken
+from sqlalchemy import select
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
@@ -34,21 +36,28 @@ def generate_tokens(user_id: str) -> Dict[str, str]:
     }
 
 async def is_token_blacklisted(token: str) -> bool:
-    db = await get_db()
-    blacklisted = await db.blacklistedtoken.find_unique(
-        where={"token": token}
-    )
-    return blacklisted is not None
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(BlacklistedToken).where(BlacklistedToken.token == token)
+        )
+        blacklisted = result.scalar_one_or_none()
+        return blacklisted is not None
 
 async def verify_token(token: str) -> Dict:
     try:
         # Check if token is blacklisted
         if await is_token_blacklisted(token):
             raise ValueError("Token has been revoked")
-            
+
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"✅ [TOKEN] SUCCESS - Token decoded successfully")
+        print(f"🔐 [TOKEN] Payload: user_id={payload.get('user_id')}, type={payload.get('type')}, exp={payload.get('exp')}")
         return payload
     except jwt.ExpiredSignatureError:
         raise ValueError("Token has expired")
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        print(f"❌ [TOKEN] FAILED - Invalid token: {str(e)}")
         raise ValueError("Invalid token")
+    except Exception as e:
+        print(f"❌ [TOKEN] FAILED - Unexpected error during token verification: {str(e)}")
+        raise ValueError(f"Token verification failed: {str(e)}")
