@@ -272,20 +272,41 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     print(f"✅ [CONNECT] User {user['username']} successfully connected to room {room_id}")
     print(f"📊 [CONNECT] Room {room_id} now has {len(active_connections[room_id])} active connections")
     
-    # Send connection success message
+    # Get existing participants with their profile data
+    existing_participants = []
+    if room_id in active_connections:
+        for existing_user_id, _ in active_connections[room_id].items():
+            if existing_user_id != user["id"]:  # Exclude the current user
+                async with AsyncSessionLocal() as db:
+                    result = await db.execute(select(User).where(User.id == existing_user_id))
+                    existing_user = result.scalar_one_or_none()
+                    if existing_user:
+                        existing_participants.append({
+                            "id": str(existing_user.id),
+                            "username": existing_user.username,
+                            "fullName": existing_user.fullName,
+                            "email": existing_user.email
+                        })
+    
+    # Send connection success message with existing participants
     await websocket.send_text(json.dumps({
         "type": "connected",
         "room_id": room_id,
         "user_id": user["id"],
         "username": user["username"],
-        "message": "Successfully connected to room"
+        "message": "Successfully connected to room",
+        "existing_participants": existing_participants
     }))
     
-    # Notify other users
+    # Notify other users with full profile data
     await broadcast_to_room(room_id, {
         "type": "user_joined",
-        "user_id": user["id"],
-        "username": user["username"],
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "fullName": user["fullName"],
+            "email": user["email"]
+        },
         "room_id": room_id
     }, exclude_user_id=user["id"])
     
@@ -358,11 +379,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             else:
                 print(f"📊 [CLEANUP] Room {room_id} now has {len(active_connections[room_id])} active connections")
         
-        # Notify other users
+        # Notify other users with full profile data
         await broadcast_to_room(room_id, {
             "type": "user_left",
-            "user_id": user["id"],
-            "username": user["username"],
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "fullName": user["fullName"],
+                "email": user["email"]
+            },
             "room_id": room_id
         }, exclude_user_id=user["id"])
         
