@@ -27,28 +27,19 @@ class CreateRoomRequest(BaseModel):
     title: str
 
 @router.get("/turn-credentials")
-async def get_turn_credentials(username: Optional[str] = None):
+async def get_turn_credentials():
     try:
+        turn_server = os.getenv("TURN_SERVER")
+        if not turn_server:
+            raise HTTPException(status_code=500, detail="TURN server not configured")
+
         turn_secret = os.getenv("TURN_SECRET")
         if not turn_secret:
             raise HTTPException(status_code=500, detail="TURN server not configured")
 
-        # Generate username if not provided
-        if not username:
-            username = f"user{int(time.time())}"
-
-        # Credential validity (1 hour)
-        ttl = 3600
-        timestamp = int(time.time()) + ttl
-        temp_username = f"{timestamp}:{username}"
-
-        # Generate credential using HMAC-SHA1
-        credential = hmac.new(
-            turn_secret.encode('utf-8'),
-            temp_username.encode('utf-8'),
-            hashlib.sha1
-        ).digest()
-        credential_b64 = base64.b64encode(credential).decode('utf-8')
+        turn_username = os.getenv("TURN_USERNAME")
+        if not turn_username:
+            raise HTTPException(status_code=500, detail="TURN username not configured")
 
         return {
             "iceServers": [
@@ -57,11 +48,10 @@ async def get_turn_credentials(username: Optional[str] = None):
                 },
                 {
                     "urls": [
-                        "turn:bitweet-turn.musthafa.app:3478",
-                        "turns:bitweet-turn.musthafa.app:5349"
+                        f"turn:{turn_server}:3478",
                     ],
-                    "username": temp_username,
-                    "credential": credential_b64
+                    "username": turn_username,
+                    "credential": turn_secret
                 }
             ]
         }
