@@ -9,3 +9,5 @@ build/
 # Virtual environment
 venv/
 .env
+
+.claude
