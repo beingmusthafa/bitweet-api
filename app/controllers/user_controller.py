@@ -9,11 +9,10 @@ router = APIRouter(prefix="/user", tags=["User"])
 @router.post("/password/send-otp")
 async def send_password_reset_otp(request: Request, current_user=Depends(get_current_user)):
     try:
-        # Call service layer to generate and send OTP
         result = await UserService.generate_and_send_otp(current_user["id"])
-        
+
         return {"message": "OTP sent successfully"}
-        
+
     except ValidationError as e:
         errors = {}
         for error in e.errors():
@@ -30,16 +29,15 @@ async def change_password(request: Request, current_user=Depends(get_current_use
     try:
         body = await request.json()
         change_request = ChangePasswordRequest(**body)
-        
-        # Call service layer to verify OTP and change password
+
         result = await UserService.verify_otp_and_change_password(
             user_id=current_user["id"],
             otp=change_request.otp,
             new_password=change_request.password
         )
-        
+
         return {"message": "Password changed successfully"}
-        
+
     except ValidationError as e:
         errors = {}
         for error in e.errors():
